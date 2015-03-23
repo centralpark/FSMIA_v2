@@ -1,29 +1,26 @@
-function fitResult = fit2D(M)
-[m,~] = size(M);
-mid = (m+1)/2;
-z_0 = min(min(M));
-A_0 = M(mid,mid) - z_0;
+function [f,gof] = fit2D(img)
+% Fit PSF to ROI
+global Option;
+R = Option.spotR;
+[y,x] = meshgrid(-R:R);
+y = y(~isnan(img))*Option.pixelSize;
+x = x(~isnan(img))*Option.pixelSize;
+z = img(~isnan(img));
+
+% PSF model
+ft = fittype('A*exp((-(x-x0)^2-(y-y0)^2)/(2*sigma^2))+z0',...
+    'independent',{'x','y'},'dependent','z');
+
+% fit options
+opts = fitoptions(ft);
+opts.Display = 'off';
+z_0 = min(min(z));
+A_0 = img(R+1,R+1) - z_0;
 x_0 = 0;
 y_0 = 0;
 sigma_0 = 250;
-para_0 = [A_0 x_0 y_0 sigma_0 z_0];
-lb = [0 -400 -400 100 z_0-200];
-ub = [A_0+200 400 400 500 z_0+200];
-opt = optimset('Display','off');
-fitPara = lsqcurvefit(@symmetricGauss,para_0,M,M,lb,ub,opt);
-fitErr = sum(sum((M-symmetricGauss(fitPara,M)).^2));
-fitResult = [fitPara fitErr];
+opts.StartPoint = [A_0 sigma_0 x_0 y_0 z_0];
+opts.Lower = [0 100 -400 -400 z_0-200];
+opts.Upper = [A_0+200 500 400 400 z_0+200];
 
-
-function fitMatrix = symmetricGauss(para,matrix)
-global Option;
-[m,~] = size(matrix);
-mid = (m+1)/2;
-fitMatrix = zeros(size(matrix));
-for i = 1:m
-    for j = 1:m
-        x = (i-mid)*Option.pixelSize;
-        y = (j-mid)*Option.pixelSize;
-        fitMatrix(i,j) = para(1)*exp(-((x-para(2)).^2+(y-para(3)).^2)/2/para(4)^2)+para(5);
-    end
-end
+[f,gof] = fit([x,y],z,ft,opts);

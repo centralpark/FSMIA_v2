@@ -1,35 +1,38 @@
-function biImage = RoughScan(RawImage)
+function [molPixelIdx,BW] = roughscan(RawImage)
 
 global Option
 threshold = Option.threshold;
 R = Option.spotR;
 img = double(RawImage);
+[M,N] = size(img);
+mid = floor(M/2)+1;
 % high pass filtering to remove uneven background
 F = fftshift(fft2(img));
 F_sub = F;
-F_sub(255:259,255:259) = 0;
-F_sub(257,257) = F(257,257);
+F_sub(mid-2:mid+2,mid-2:mid+2) = 0;
+F_sub(mid,mid) = F(mid,mid);
 img_1 = ifft2(ifftshift(F_sub));
 % apply median filter to remove single pixel noise
 img_2 = medfilt2(img_1);
-[M,N] = size(img);
-BW = img_2 > threshold;
-CC = bwconncomp(BW);
-img_bi = zeros(M,N);
-
-for k = 1:length(CC.PixelIdxList)
-    [i,j] = getcentroid(CC.PixelIdxList{k});
-    if ge(i,R+1) && ge(M-R,i) && ge(j,R+1) && ge(N-R,j)
-        img_bi(i,j) = 1;
-    end
-end
-
 if Option.exclude
     x1 = Option.exclude(1,1);
     y1 = Option.exclude(1,2);
     x2 = Option.exclude(2,1);
     y2 = Option.exclude(2,2);
-    biImage(x1:x2,y1:y2) = 0;
+    img_2(x1:x2,y1:y2) = 0;
+end
+
+BW = img_2 > threshold;
+CC = bwconncomp(BW);
+molPixelIdx = cell(1);
+l = 1;
+
+for k = 1:length(CC.PixelIdxList)
+    [i,j] = getcentroid(CC.PixelIdxList{k});
+    if ge(i,R+1) && ge(M-R,i) && ge(j,R+1) && ge(N-R,j)
+        molPixelIdx{l} = [i,j];
+        l = l+1;
+    end
 end
 
     function [c_row,c_col] = getcentroid(pixelIdxList)
