@@ -1,6 +1,6 @@
-function [molPixelIdx,BW] = roughscan(RawImage)
+function [molPixelIdx,BW] = roughscan(obj,RawImage)
 
-global Option
+Option = obj.Option;
 threshold = Option.threshold;
 R = Option.spotR;
 img = double(RawImage);
@@ -28,10 +28,30 @@ molPixelIdx = cell(1);
 l = 1;
 
 for k = 1:length(CC.PixelIdxList)
-    [i,j] = getcentroid(CC.PixelIdxList{k});
-    if ge(i,R+1) && ge(M-R,i) && ge(j,R+1) && ge(N-R,j)
-        molPixelIdx{l} = [i,j];
-        l = l+1;
+    if ge(numel(CC.PixelIdxList{k}),50)
+        % there might be multiple molecules near each other
+        pixIdxList = CC.PixelIdxList{k};
+        for ind = 1:numel(pixIdxList)
+            pix = pixIdxList(ind);
+            neighbors = [pix-M pix-M-1 pix-M+1 pix-1 pix+1 pix+M pix+M-1 pix+M+1];
+            if sum(~ismember(neighbors,pixIdxList))
+                continue
+            elseif ge(img(pix),max(img(neighbors)))
+                [i,j] = ind2sub([M,N],pix);
+                if ge(i,R+1) && ge(M-R,i) && ge(j,R+1) && ge(N-R,j)
+                    molPixelIdx{l} = [i,j];
+                    l = l+1;
+                end
+            else
+                continue
+            end
+        end    
+    else
+        [i,j] = getcentroid(CC.PixelIdxList{k});
+        if ge(i,R+1) && ge(M-R,i) && ge(j,R+1) && ge(N-R,j)
+            molPixelIdx{l} = [i,j];
+            l = l+1;
+        end
     end
 end
 

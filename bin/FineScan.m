@@ -1,15 +1,18 @@
-function finescan(RawImage)
+function finescan(obj,RawImage)
 % FINESCAN(MOLPIXELIDX,RAWIMAGE) gets the detailed information for molecules
 % identified in RAWIMAGE
 
-global Molecule;
-global Option;
-NumMolecule = length(Molecule);
+Option = obj.Option;
+NumMolecule = length(obj.Molecule);
 R = Option.spotR;   % radius (pixel) of diffraction limited spot
 img = double(RawImage);
-[molPixelIdx,BW] = roughscan(img);
+[molPixelIdx,BW] = roughscan(obj,img);
+valley = Option.valley;
 
 for k = 1:length(molPixelIdx)
+    if isempty(molPixelIdx{k})
+        break
+    end
     i = molPixelIdx{k}(1);
     j = molPixelIdx{k}(2);
     subImage = img(i-R:i+R,j-R:j+R);
@@ -28,13 +31,28 @@ for k = 1:length(molPixelIdx)
         end
     end
     
+    % if neighbor molecule is in the ROI
+    margin_row = [1 2*R+1 2 2*R];
+    margin_col = [1 2*R+1 2 2*R];
+    for ii = 1:4
+        for jj = 1:4
+            iii = margin_row(ii);
+            jjj = margin_col(jj);
+            if subImage(iii,jjj) > valley
+                subimage(iii,jjj) = NaN;
+            end
+        end
+    end
+    
     try
-        [Molecule(NumMolecule+k).fit,Molecule(NumMolecule+k).gof] = fit2D(subImage);
+        [obj.Molecule(NumMolecule+k).fit,obj.Molecule(NumMolecule+k).gof] = fit2D(obj,subImage);
     catch
         disp('Unable to fit 2D Gaussian for the following molecule:');
         fprintf('%d, %d\n',i,j);
         disp(subImage);
         continue
     end
-    Molecule(NumMolecule+k).coordinate = [i j];
+    obj.Molecule(NumMolecule+k).coordinate = [i j];
+end
+
 end
