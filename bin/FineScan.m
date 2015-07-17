@@ -39,7 +39,7 @@ for k = 1:length(molPixelIdx)
             iii = margin_row(ii);
             jjj = margin_col(jj);
             if subImage(iii,jjj) > valley
-                subimage(iii,jjj) = NaN;
+                subImage(iii,jjj) = NaN;
             end
         end
     end
